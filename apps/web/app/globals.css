@@ -41,6 +41,11 @@ h1 {
   margin-bottom: 12px;
 }
 
+h2 {
+  font-size: clamp(1.2rem, 2.4vw, 1.6rem);
+  font-weight: 600;
+}
+
 p {
   color: var(--muted);
   line-height: 1.6;
@@ -59,10 +64,26 @@ a {
   backdrop-filter: blur(12px);
 }
 
+.card-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
 .section {
   margin-top: 24px;
   display: grid;
   gap: 16px;
+}
+
+.badge-row {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .input-row {
@@ -163,6 +184,10 @@ button:hover:not(:disabled) {
 .note {
   font-size: 0.9rem;
   color: var(--muted);
+}
+
+.info-box {
+  margin-top: 20px;
 }
 
 @media (min-width: 700px) {

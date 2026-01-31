@@ -6,6 +6,6 @@
   "scripts": {
     "dev": "pnpm -r --parallel dev",
     "build": "pnpm -r build",
-    "test": "pnpm -r test"
+    "test": "pnpm --filter api test"
   }
 }

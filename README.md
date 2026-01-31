@@ -66,9 +66,8 @@ Included:
 - Deterministic usage evaluation
 - Proof hash generation
 - Score, farming risk, and tags
-- Multi-wallet comparison table
-- CSV export
 - Demo UI at /demo/proof
+- API endpoint at /api/proof
 
 Explicitly not included (by design):
 
@@ -89,19 +88,18 @@ Demo Route:
 
 Suggested demo flow:
 
-1. Enter an ENS name
+1. Enter an ENS name or address
 2. Resolve to wallet address
 3. Generate deterministic proof
-4. Observe fixed hash and score
-5. Export results as CSV
+4. Observe fixed hash, score, and tags
+5. Re-run to confirm deterministic output
 
 ## 🏗️ Tech Stack
 
-- Solidity — deterministic proof logic
-- ENS — identity resolution
-- Next.js — demo interface
+- Express + TypeScript - API
+- Ethers - ENS resolution
+- Next.js (App Router) - demo interface
 - TypeScript
-- CSV export utilities
 
 AI tools were used only for UI scaffolding and non-critical helper logic.
 
@@ -109,10 +107,11 @@ Full disclosure is available in AI_ATTRIBUTION.md.
 
 ## 📁 Repository Structure
 
-contracts/ → Proof and ENS logic  
-app/ → Demo UI  
-docs/ → Hackathon and AI attribution  
-scripts/ → Local deploy helpers
+apps/api -> Express API for ENS resolution + deterministic proof  
+apps/web -> Next.js demo UI  
+DEPLOYMENT.md -> Render/Vercel setup  
+HACKATHON.md -> Hackathon compliance
+
 
 ## 🏁 Hackathon Compliance
 
