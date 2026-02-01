@@ -25,12 +25,36 @@ export async function resolveEnsOrAddress(input: string): Promise<ResolveResult>
   if (trimmed.includes(".")) {
     const rpcUrl = process.env.RPC_URL;
     if (!rpcUrl) {
-      throw new ApiError("RPC_URL_MISSING", "RPC_URL is required to resolve ENS names.", 500);
+      const error = new Error("RPC_URL is required to resolve ENS names.") as Error & {
+        statusCode?: number;
+        code?: string;
+      };
+      error.statusCode = 500;
+      error.code = "RPC_URL_MISSING";
+      throw error;
     }
     const provider = new JsonRpcProvider(rpcUrl);
-    const resolved = await provider.resolveName(trimmed);
+    let resolved: string | null;
+    try {
+      resolved = await provider.resolveName(trimmed);
+    } catch (err) {
+      const originalMessage = err instanceof Error ? err.message : "Unknown error";
+      const error = new Error(`ENS resolution failed: ${originalMessage}`) as Error & {
+        statusCode?: number;
+        code?: string;
+      };
+      error.statusCode = 500;
+      error.code = "ENS_RESOLVE_FAILED";
+      throw error;
+    }
     if (!resolved) {
-      throw new ApiError("ENS_NOT_FOUND", "ENS name not found.", 404);
+      const error = new Error("ENS name not found.") as Error & {
+        statusCode?: number;
+        code?: string;
+      };
+      error.statusCode = 404;
+      error.code = "ENS_NOT_FOUND";
+      throw error;
     }
 
     return {

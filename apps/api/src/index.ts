@@ -1,6 +1,6 @@
 import cors from "cors";
 import express from "express";
-import { ApiError, toErrorResponse } from "./errors";
+import { ApiError } from "./errors";
 import { resolveEnsOrAddress } from "./ens";
 import { generateDeterministicProof } from "./proof";
 import type { ProofResponse } from "./types";
@@ -14,7 +14,7 @@ app.get("/health", (_req, res) => {
   res.json({ ok: true });
 });
 
-app.post("/api/proof", async (req, res) => {
+app.post("/api/proof", async (req, res, next) => {
   try {
     const { ensOrAddress } = req.body ?? {};
     if (typeof ensOrAddress !== "string") {
@@ -44,9 +44,34 @@ app.post("/api/proof", async (req, res) => {
 
     res.json(response);
   } catch (error) {
-    const { status, body } = toErrorResponse(error);
-    res.status(status).json(body);
+    next(error);
   }
+});
+
+app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error({
+    message: err?.message,
+    code: err?.code,
+    statusCode: err?.statusCode,
+    stack: err?.stack
+  });
+
+  const statusCode = typeof err?.statusCode === "number"
+    ? err.statusCode
+    : typeof err?.status === "number"
+      ? err.status
+      : undefined;
+  const code = typeof err?.code === "string" ? err.code : "INTERNAL_ERROR";
+  const message = typeof err?.message === "string" && err.message
+    ? err.message
+    : "Unexpected error";
+
+  res.status(statusCode || 500).json({
+    error: {
+      code,
+      message
+    }
+  });
 });
 
 const port = Number.parseInt(process.env.PORT ?? "4000", 10) || 4000;
