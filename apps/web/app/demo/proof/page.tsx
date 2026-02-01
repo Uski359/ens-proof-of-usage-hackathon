@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 
@@ -68,16 +68,45 @@ export default function ProofDemoPage() {
 
   return (
     <main>
-      <h1>Deterministic Proof Demo</h1>
-      <p>
-        Enter an ENS name or wallet address. ENS resolution is used for UX; the proof only
-        uses the resolved address.
-      </p>
-      <div className="badge-row">
-        <span className="badge-inline">ENS (UX only)</span>
-        <span className="badge-inline">Deterministic ✔</span>
-        <span className="badge-inline">Proof ≠ AI</span>
-      </div>
+      <section className="hero">
+        <a className="link-secondary back-link" href="/">
+          Back to Home
+        </a>
+        <h1>ENS-aware Proof-of-Usage</h1>
+        <p className="lead">
+          Deterministic eligibility proofs for DeFi incentives using ENS for UX.
+        </p>
+        <p className="subtle">
+          Enter an ENS name or wallet address. ENS resolution is used for UX; the proof only
+          uses the resolved address.
+        </p>
+        <div className="badge-row">
+          <span className="badge-inline">Resolved from ENS (UX only)</span>
+          <span className="badge-inline">Deterministic ✔</span>
+          <span className="badge-inline">Proof != AI</span>
+        </div>
+        <p className="subtle">Same input always produces the same proof.</p>
+      </section>
+
+      <section className="section">
+        <div className="card">
+          <div className="card-title">
+            <h2>Step 1 — ENS Resolution (UX Only)</h2>
+            <span className="badge-inline">Resolved from ENS (UX only)</span>
+          </div>
+          <p className="subtle">
+            Proofs are generated only from the resolved wallet address. ENS is used for UX only
+            and is not part of the proof input.
+          </p>
+        </div>
+        <div className="card">
+          <div className="card-title">
+            <h2>Step 2 — Deterministic Proof Output</h2>
+            <span className="badge-inline">Deterministic ✔</span>
+          </div>
+          <p className="subtle">Same input always produces the same proof.</p>
+        </div>
+      </section>
 
       <form className="section" onSubmit={handleSubmit}>
         <div className="input-row">
@@ -93,13 +122,6 @@ export default function ProofDemoPage() {
         </div>
         {error ? <p className="error">{error}</p> : null}
       </form>
-
-      <div className="card info-box">
-        <p className="note">
-          We intentionally limited this demo to the deterministic core. ENS improves UX, but the
-          proof itself remains fully reproducible.
-        </p>
-      </div>
 
       {data ? (
         <div className="section">
