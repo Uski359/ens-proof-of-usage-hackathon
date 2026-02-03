@@ -121,18 +121,28 @@ export default function ProofDemoPage() {
         </div>
       </section>
 
-      <form className="section" onSubmit={handleSubmit}>
-        <div className="input-row">
-          <textarea
-            value={inputsText}
-            onChange={(event) => setInputsText(event.target.value)}
-            placeholder={"vitalik.eth\n0xabc...\n0xdef..."}
-            aria-label="ENS names or wallet addresses"
-            rows={3}
-          />
-          <button type="submit" disabled={loading}>
-            {loading ? "Generating deterministic proofs..." : "Generate Proofs"}
-          </button>
+      <form className="section input-panel" onSubmit={handleSubmit}>
+        <div className="input-card">
+          <div className="input-header">
+            <div>
+              <p className="input-kicker">Batch inputs</p>
+              <h3>Paste wallets or ENS names</h3>
+              <p className="subtle">One per line. Commas and spaces also work.</p>
+            </div>
+            <span className="badge-inline">Batch</span>
+          </div>
+          <div className="input-row">
+            <textarea
+              value={inputsText}
+              onChange={(event) => setInputsText(event.target.value)}
+              placeholder={"vitalik.eth\n0xabc...\n0xdef..."}
+              aria-label="ENS names or wallet addresses"
+              rows={4}
+            />
+            <button type="submit" disabled={loading}>
+              {loading ? "Generating deterministic proofs..." : "Generate Proofs"}
+            </button>
+          </div>
         </div>
         {error ? <p className="error">{error}</p> : null}
       </form>
