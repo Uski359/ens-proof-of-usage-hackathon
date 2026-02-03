@@ -3,7 +3,7 @@ import express from "express";
 import { ApiError } from "./errors";
 import { resolveEnsOrAddress } from "./ens";
 import { generateDeterministicProof } from "./proof";
-import type { ProofResponse } from "./types";
+import type { BatchProofResponse, BatchProofSuccess, ProofResponse } from "./types";
 
 const app = express();
 
@@ -13,6 +13,45 @@ app.use(cors());
 app.get("/health", (_req, res) => {
   res.json({ ok: true });
 });
+
+function getErrorDetails(error: unknown): { code: string; message: string } {
+  if (error instanceof ApiError) {
+    return {
+      code: error.code,
+      message: error.message
+    };
+  }
+
+  const code =
+    typeof (error as { code?: unknown })?.code === "string"
+      ? (error as { code: string }).code
+      : "INTERNAL_ERROR";
+  const message =
+    typeof (error as { message?: unknown })?.message === "string" && (error as { message?: string }).message
+      ? (error as { message: string }).message
+      : "Unexpected error";
+
+  return { code, message };
+}
+
+async function buildBatchProof(input: string, chainId: string): Promise<BatchProofSuccess> {
+  const trimmedInput = input.trim();
+  if (!trimmedInput) {
+    throw new ApiError("INVALID_INPUT", "Input is required.", 400);
+  }
+
+  const { resolvedAddress } = await resolveEnsOrAddress(trimmedInput);
+  const proof = generateDeterministicProof(resolvedAddress, chainId);
+
+  return {
+    input: trimmedInput,
+    resolvedAddress,
+    proofHash: proof.proofHash,
+    score: proof.score,
+    tags: proof.tags,
+    deterministic: true
+  };
+}
 
 app.post("/api/proof", async (req, res, next) => {
   try {
@@ -38,6 +77,55 @@ app.post("/api/proof", async (req, res, next) => {
       proof,
       meta: {
         deterministic: true,
+        version: "v1"
+      }
+    };
+
+    res.json(response);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/proof/batch", async (req, res, next) => {
+  try {
+    const { inputs } = req.body ?? {};
+    if (!Array.isArray(inputs)) {
+      throw new ApiError("INVALID_INPUT", "inputs must be an array of strings.", 400);
+    }
+
+    const chainId = process.env.CHAIN_ID ?? "1";
+    const results = await Promise.all(
+      inputs.map(async (input) => {
+        if (typeof input !== "string") {
+          return {
+            input: String(input),
+            error: {
+              code: "INVALID_INPUT",
+              message: "Input must be a string."
+            }
+          };
+        }
+
+        try {
+          return await buildBatchProof(input, chainId);
+        } catch (error) {
+          const { code, message } = getErrorDetails(error);
+          const trimmedInput = input.trim();
+          return {
+            input: trimmedInput || input,
+            error: {
+              code,
+              message
+            }
+          };
+        }
+      })
+    );
+
+    const response: BatchProofResponse = {
+      results,
+      meta: {
         version: "v1"
       }
     };

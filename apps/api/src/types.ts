@@ -20,3 +20,33 @@ export type ProofResponse = {
     version: "v1";
   };
 };
+
+export type BatchProofRequest = {
+  inputs: string[];
+};
+
+export type BatchProofSuccess = {
+  input: string;
+  resolvedAddress: string;
+  proofHash: string;
+  score: number;
+  tags: string[];
+  deterministic: true;
+};
+
+export type BatchProofError = {
+  input: string;
+  error: {
+    code: string;
+    message: string;
+  };
+};
+
+export type BatchProofResult = BatchProofSuccess | BatchProofError;
+
+export type BatchProofResponse = {
+  results: BatchProofResult[];
+  meta: {
+    version: "v1";
+  };
+};
