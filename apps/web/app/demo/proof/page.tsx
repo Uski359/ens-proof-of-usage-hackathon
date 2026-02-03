@@ -26,12 +26,42 @@ type BatchProofResponse = {
   };
 };
 
+const isBatchProofSuccess = (
+  result: BatchProofSuccess | BatchProofError
+): result is BatchProofSuccess => !("error" in result);
+
+const escapeCsvValue = (value: string | number) => {
+  const stringValue = String(value);
+  if (/[",\n]/.test(stringValue)) {
+    return `"${stringValue.replace(/"/g, "\"\"")}"`;
+  }
+  return stringValue;
+};
+
+const buildCsv = (results: BatchProofSuccess[]) => {
+  const header = "input,resolved_address,proof_hash,score,tags,policy_version";
+  const rows = results.map((result) => {
+    const columns = [
+      result.input,
+      result.resolvedAddress,
+      result.proofHash,
+      result.score,
+      result.tags.join("|"),
+      "v1"
+    ];
+    return columns.map(escapeCsvValue).join(",");
+  });
+
+  return [header, ...rows].join("\n");
+};
+
 export default function ProofDemoPage() {
   const [inputsText, setInputsText] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<BatchProofResponse | null>(null);
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+  const successfulResults = data?.results.filter(isBatchProofSuccess) ?? [];
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -76,6 +106,23 @@ export default function ProofDemoPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDownloadCsv = () => {
+    if (successfulResults.length === 0) {
+      return;
+    }
+
+    const csv = buildCsv(successfulResults);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "ens-proof-of-usage.csv";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -141,6 +188,13 @@ export default function ProofDemoPage() {
             />
             <button type="submit" disabled={loading}>
               {loading ? "Generating deterministic proofs..." : "Generate Proofs"}
+            </button>
+            <button
+              type="button"
+              onClick={handleDownloadCsv}
+              disabled={loading || successfulResults.length === 0}
+            >
+              Download CSV
             </button>
           </div>
         </div>
