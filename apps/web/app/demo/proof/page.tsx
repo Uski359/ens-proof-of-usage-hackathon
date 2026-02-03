@@ -123,11 +123,12 @@ export default function ProofDemoPage() {
 
       <form className="section" onSubmit={handleSubmit}>
         <div className="input-row">
-          <input
+          <textarea
             value={inputsText}
             onChange={(event) => setInputsText(event.target.value)}
-            placeholder="vitalik.eth, 0xabc..., 0xdef..."
+            placeholder={"vitalik.eth\n0xabc...\n0xdef..."}
             aria-label="ENS names or wallet addresses"
+            rows={3}
           />
           <button type="submit" disabled={loading}>
             {loading ? "Generating deterministic proofs..." : "Generate Proofs"}
