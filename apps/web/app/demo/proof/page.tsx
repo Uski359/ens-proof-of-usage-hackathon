@@ -325,16 +325,16 @@ export default function ProofDemoPage() {
                   </p>
                 </div>
                 <div className="output-grid">
-                  <div>
+                  <div className="output-block">
                     <div className="output-key">Resolved Address</div>
                     <div className="output-value mono copyable">{result.resolvedAddress}</div>
                   </div>
-                  <div>
+                  <div className="output-block">
                     <div className="output-key">Proof Hash</div>
                     <div className="output-value mono copyable">{result.proofHash}</div>
                     <div className="output-note">Deterministic proof identifier</div>
                   </div>
-                  <div>
+                  <div className="output-block score-block">
                     <div className="output-key">Score</div>
                     <div className="output-value score-value">{result.score}</div>
                   </div>
