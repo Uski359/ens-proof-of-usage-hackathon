@@ -26,6 +26,8 @@ type BatchProofResponse = {
   };
 };
 
+const POLICY_VERSION = "v1";
+
 const isBatchProofSuccess = (
   result: BatchProofSuccess | BatchProofError
 ): result is BatchProofSuccess => !("error" in result);
@@ -62,6 +64,9 @@ const getTagMeta = (tag: string) => {
   return { key, value, label: formatTagLabel(tag) };
 };
 
+const getEnsProfileUrl = (input: string) =>
+  `https://app.ens.domains/name/${encodeURIComponent(input)}`;
+
 const buildCsv = (results: BatchProofSuccess[]) => {
   const header = "input,resolved_address,proof_hash,score,tags,policy_version";
   const rows = results.map((result) => {
@@ -71,12 +76,29 @@ const buildCsv = (results: BatchProofSuccess[]) => {
       result.proofHash,
       result.score,
       result.tags.join("|"),
-      "v1"
+      POLICY_VERSION
     ];
     return columns.map(escapeCsvValue).join(",");
   });
 
   return [header, ...rows].join("\n");
+};
+
+const buildJson = (results: BatchProofSuccess[]) => {
+  const payload = {
+    policy_version: POLICY_VERSION,
+    deterministic: true,
+    generated_at: new Date().toISOString(),
+    results: results.map((result) => ({
+      input: result.input,
+      resolved_address: result.resolvedAddress,
+      proof_hash: result.proofHash,
+      score: result.score,
+      tags: result.tags
+    }))
+  };
+
+  return JSON.stringify(payload, null, 2);
 };
 
 const isEnsLikeInput = (input: string) => {
@@ -95,6 +117,17 @@ export default function ProofDemoPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<BatchProofResponse | null>(null);
+  const [verifyInput, setVerifyInput] = useState("");
+  const [verifyPolicyVersion, setVerifyPolicyVersion] = useState(POLICY_VERSION);
+  const [verifyLoading, setVerifyLoading] = useState(false);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
+  const [verifyResult, setVerifyResult] = useState<{
+    proofHash: string;
+    resolvedAddress: string;
+    matchStatus: "match" | "mismatch" | "unverified";
+  } | null>(null);
+  const [verifyReferenceHash, setVerifyReferenceHash] = useState<string | null>(null);
+  const [verifyReferenceInput, setVerifyReferenceInput] = useState<string | null>(null);
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
   const successfulResults = data?.results.filter(isBatchProofSuccess) ?? [];
 
@@ -158,6 +191,87 @@ export default function ProofDemoPage() {
     link.click();
     link.remove();
     URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadJson = () => {
+    if (successfulResults.length === 0) {
+      return;
+    }
+
+    const json = buildJson(successfulResults);
+    const blob = new Blob([json], { type: "application/json;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "ens-proof-of-usage.json";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleVerify = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setVerifyError(null);
+    setVerifyResult(null);
+
+    if (!apiBaseUrl) {
+      setVerifyError("NEXT_PUBLIC_API_BASE_URL is not configured.");
+      return;
+    }
+
+    const trimmedInput = verifyInput.trim();
+    if (!trimmedInput) {
+      setVerifyError("Enter a wallet address to verify.");
+      return;
+    }
+
+    setVerifyLoading(true);
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/proof/batch`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ inputs: [trimmedInput] })
+      });
+      const payload = (await response.json()) as BatchProofResponse | { error?: { message?: string } };
+
+      if (!response.ok) {
+        const message = "error" in payload && payload.error?.message
+          ? payload.error.message
+          : "Failed to verify proof.";
+        throw new Error(message);
+      }
+
+      const result = (payload as BatchProofResponse).results[0];
+      if (!result || "error" in result) {
+        throw new Error(result && "error" in result ? result.error.message : "No proof returned.");
+      }
+
+      const matchStatus = verifyReferenceHash
+        ? result.proofHash === verifyReferenceHash
+          ? "match"
+          : "mismatch"
+        : "unverified";
+
+      setVerifyResult({
+        proofHash: result.proofHash,
+        resolvedAddress: result.resolvedAddress,
+        matchStatus
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unexpected error.";
+      setVerifyError(message);
+    } finally {
+      setVerifyLoading(false);
+    }
+  };
+
+  const handleUseForVerification = (result: BatchProofSuccess) => {
+    setVerifyInput(result.resolvedAddress);
+    setVerifyReferenceHash(result.proofHash);
+    setVerifyReferenceInput(result.input);
+    setVerifyResult(null);
+    setVerifyError(null);
   };
 
   return (
@@ -231,13 +345,91 @@ export default function ProofDemoPage() {
             >
               Download CSV
             </button>
+            <button
+              type="button"
+              onClick={handleDownloadJson}
+              disabled={loading || successfulResults.length === 0}
+            >
+              Download JSON
+            </button>
           </div>
           <p className="subtle csv-helper">
-            Export deterministic proofs for off-chain eligibility pipelines.
+            Exports are deterministic and reproducible for the same policy version.
           </p>
         </div>
         {error ? <p className="error">{error}</p> : null}
       </form>
+
+      <section className="section">
+        <div className="card verify-card">
+          <div className="card-title">
+            <h2>Verify Proof</h2>
+            <span className="badge-inline badge-soft">Deterministic</span>
+          </div>
+          <p className="subtle">
+            Verification recomputes the proof using the same deterministic logic. No state is
+            stored.
+          </p>
+          <form className="verify-form" onSubmit={handleVerify}>
+            <div className="verify-grid">
+              <label className="verify-field">
+                <span className="verify-label">Wallet Address</span>
+                <input
+                  value={verifyInput}
+                  onChange={(event) => setVerifyInput(event.target.value)}
+                  placeholder="0x..."
+                  aria-label="Wallet address"
+                />
+              </label>
+              <label className="verify-field">
+                <span className="verify-label">Policy Version</span>
+                <select
+                  value={verifyPolicyVersion}
+                  onChange={(event) => setVerifyPolicyVersion(event.target.value)}
+                  aria-label="Policy version"
+                >
+                  <option value={POLICY_VERSION}>{POLICY_VERSION}</option>
+                </select>
+              </label>
+            </div>
+            <div className="verify-actions">
+              <button type="submit" disabled={verifyLoading}>
+                {verifyLoading ? "Recomputing proof..." : "Verify Proof"}
+              </button>
+              {verifyReferenceHash ? (
+                <span className="subtle verify-reference">
+                  Reference hash loaded from {verifyReferenceInput ?? "a proof result"}.
+                </span>
+              ) : (
+                <span className="subtle verify-reference">
+                  Load a reference hash from a proof result to compare.
+                </span>
+              )}
+            </div>
+          </form>
+          {verifyError ? <p className="error">{verifyError}</p> : null}
+          {verifyResult ? (
+            <div className="verify-output">
+              <div className="verify-output-item">
+                <div className="output-key">Computed Proof Hash</div>
+                <div className="output-value mono copyable">{verifyResult.proofHash}</div>
+              </div>
+              <div className="verify-output-item">
+                <div className="output-key">Match Status</div>
+                <span
+                  className={`match-pill match-${verifyResult.matchStatus}`}
+                >
+                  {verifyResult.matchStatus === "match"
+                    ? "Match"
+                    : verifyResult.matchStatus === "mismatch"
+                      ? "Mismatch"
+                      : "No reference hash"}
+                </span>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </section>
 
       {data ? (
         <div className="section">
@@ -266,6 +458,16 @@ export default function ProofDemoPage() {
                     <div className="identity-meta">
                       <div className="identity-input">{inputValue}</div>
                       <div className="identity-address mono">{resolvedAddress}</div>
+                      {isEns ? (
+                        <a
+                          className="identity-link"
+                          href={getEnsProfileUrl(inputValue)}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          View ENS Profile
+                        </a>
+                      ) : null}
                     </div>
                     <span className="badge-inline">
                       {isEns ? "Identity-based (ENS)" : "Address-based"}
@@ -275,8 +477,7 @@ export default function ProofDemoPage() {
               })}
             </div>
             <p className="subtle">
-              ENS is used to abstract identity for humans. Eligibility proofs are generated
-              solely from the resolved wallet address.
+              ENS improves identity usability. Proof inputs remain address-based.
             </p>
           </div>
           {data.results.map((result, index) => {
@@ -296,8 +497,29 @@ export default function ProofDemoPage() {
             return (
               <div key={`${result.input}-${index}`} className="card">
                 <div className="card-title">
-                  <h2>Input: {result.input}</h2>
-                  <span className="badge-inline badge-soft">Deterministic ✓</span>
+                  <div className="card-title-main">
+                    <h2>Input: {result.input}</h2>
+                  </div>
+                  <div className="card-actions">
+                    <span className="badge-inline badge-soft">Deterministic ✓</span>
+                    {isEnsLikeInput(result.input) ? (
+                      <a
+                        className="btn-tertiary"
+                        href={getEnsProfileUrl(result.input)}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Open ENS Profile
+                      </a>
+                    ) : null}
+                    <button
+                      type="button"
+                      className="btn-tertiary"
+                      onClick={() => handleUseForVerification(result)}
+                    >
+                      Use for Verification
+                    </button>
+                  </div>
                 </div>
                 <div className="signal-section">
                   <div className="signal-title">Policy Signals</div>
@@ -338,6 +560,32 @@ export default function ProofDemoPage() {
                     <div className="output-key">Score</div>
                     <div className="output-value score-value">{result.score}</div>
                   </div>
+                </div>
+                <div className="metadata-section">
+                  <div className="metadata-title">Proof Metadata</div>
+                  <div className="metadata-grid">
+                    <div className="metadata-item">
+                      <div className="metadata-label">Policy Version</div>
+                      <div className="metadata-value">{POLICY_VERSION}</div>
+                    </div>
+                    <div className="metadata-item">
+                      <div className="metadata-label">Proof Input</div>
+                      <div className="metadata-value">Resolved wallet address</div>
+                    </div>
+                    <div className="metadata-item">
+                      <div className="metadata-label">Reproducibility</div>
+                      <div className="metadata-value">Deterministic</div>
+                    </div>
+                    <div className="metadata-item">
+                      <div className="metadata-label">Deterministic</div>
+                      <div className="metadata-value">
+                        {result.deterministic ? "true" : "false"}
+                      </div>
+                    </div>
+                  </div>
+                  <p className="metadata-note">
+                    This proof can always be reproduced using the same input and policy version.
+                  </p>
                 </div>
                 <p className="subtle result-ens-note">
                   ENS is used for identity abstraction only. Proofs are generated solely from the

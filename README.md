@@ -136,3 +136,13 @@ MIT
 
 We donâ€™t create rewards.  
 We create deterministic eligibility.
+
+## Determinism Contract
+
+- Inputs that matter: resolved wallet address + policy version.
+- What never changes: no randomness, no timestamps, no external state.
+- Future policy versions will be communicated in the README and UI.
+
+## Changelog
+
+- v1 — Initial deterministic policy

@@ -13,7 +13,7 @@ export default function NavBar() {
           </Link>
           <a
             className="nav-link"
-            href="https://github.com/<owner>/<repo>"
+            href="https://github.com/Uski359/ens-proof-of-usage-hackathon"
             target="_blank"
             rel="noreferrer"
           >
