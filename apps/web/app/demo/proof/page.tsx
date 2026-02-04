@@ -38,6 +38,30 @@ const escapeCsvValue = (value: string | number) => {
   return stringValue;
 };
 
+const toTitleCase = (value: string) =>
+  value
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => word[0]?.toUpperCase() + word.slice(1))
+    .join(" ");
+
+const formatTagLabel = (tag: string) => {
+  const [rawKey, rawValue] = tag.split(":");
+  if (!rawValue) {
+    return toTitleCase(tag.replace(/[-_]/g, " "));
+  }
+  const key = toTitleCase(rawKey.replace(/[-_]/g, " ").trim());
+  const value = toTitleCase(rawValue.replace(/[-_]/g, " ").trim());
+  return `${value} ${key}`.trim();
+};
+
+const getTagMeta = (tag: string) => {
+  const [rawKey, rawValue] = tag.split(":");
+  const key = rawKey ? rawKey.trim().toLowerCase() : "unknown";
+  const value = rawValue ? rawValue.trim().toLowerCase() : "unknown";
+  return { key, value, label: formatTagLabel(tag) };
+};
+
 const buildCsv = (results: BatchProofSuccess[]) => {
   const header = "input,resolved_address,proof_hash,score,tags,policy_version";
   const rows = results.map((result) => {
@@ -53,6 +77,17 @@ const buildCsv = (results: BatchProofSuccess[]) => {
   });
 
   return [header, ...rows].join("\n");
+};
+
+const isEnsLikeInput = (input: string) => {
+  const normalized = input.trim().toLowerCase();
+  if (!normalized) {
+    return false;
+  }
+  if (normalized.startsWith("0x")) {
+    return false;
+  }
+  return normalized.includes(".");
 };
 
 export default function ProofDemoPage() {
@@ -197,12 +232,53 @@ export default function ProofDemoPage() {
               Download CSV
             </button>
           </div>
+          <p className="subtle csv-helper">
+            Export deterministic proofs for off-chain eligibility pipelines.
+          </p>
         </div>
         {error ? <p className="error">{error}</p> : null}
       </form>
 
       {data ? (
         <div className="section">
+          <div className="card">
+            <div className="card-title">
+              <h2>Results</h2>
+            </div>
+            <p className="subtle">
+              ENS is treated as an identity abstraction layer, not a trust assumption.
+              Proofs remain protocol-agnostic, deterministic, and reproducible.
+            </p>
+          </div>
+          <div className="card">
+            <div className="card-title">
+              <h2>ENS Identity Context</h2>
+            </div>
+            <div className="identity-grid">
+              {data.results.map((result, index) => {
+                const inputValue = result.input || "Invalid input";
+                const isEns = isEnsLikeInput(inputValue);
+                const resolvedAddress = isBatchProofSuccess(result)
+                  ? result.resolvedAddress
+                  : "Unavailable";
+                return (
+                  <div className="identity-row" key={`identity-${inputValue}-${index}`}>
+                    <div className="identity-meta">
+                      <div className="identity-input">{inputValue}</div>
+                      <div className="identity-address mono">{resolvedAddress}</div>
+                    </div>
+                    <span className="badge-inline">
+                      {isEns ? "Identity-based (ENS)" : "Address-based"}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+            <p className="subtle">
+              ENS is used to abstract identity for humans. Eligibility proofs are generated
+              solely from the resolved wallet address.
+            </p>
+          </div>
           {data.results.map((result, index) => {
             if ("error" in result) {
               return (
@@ -221,27 +297,63 @@ export default function ProofDemoPage() {
               <div key={`${result.input}-${index}`} className="card">
                 <div className="card-title">
                   <h2>Input: {result.input}</h2>
-                  <span className="badge-inline">Deterministic ✔</span>
+                  <span className="badge-inline badge-soft">Deterministic ✓</span>
+                </div>
+                <div className="signal-section">
+                  <div className="signal-title">Policy Signals</div>
+                  <div className="signal-list">
+                    {result.tags.length > 0 ? (
+                      result.tags.map((tag) => {
+                        const meta = getTagMeta(tag);
+                        return (
+                          <span
+                            className="signal-pill"
+                            data-key={meta.key}
+                            data-value={meta.value}
+                            key={`${result.input}-${tag}`}
+                          >
+                            {meta.label}
+                          </span>
+                        );
+                      })
+                    ) : (
+                      <span className="subtle">No policy signals available.</span>
+                    )}
+                  </div>
+                  <p className="signal-helper">
+                    These signals are derived deterministically from on-chain usage patterns.
+                  </p>
                 </div>
                 <div className="output-grid">
                   <div>
                     <div className="output-key">Resolved Address</div>
-                    <div className="output-value">{result.resolvedAddress}</div>
+                    <div className="output-value mono copyable">{result.resolvedAddress}</div>
                   </div>
                   <div>
                     <div className="output-key">Proof Hash</div>
-                    <div className="output-value">{result.proofHash}</div>
+                    <div className="output-value mono copyable">{result.proofHash}</div>
+                    <div className="output-note">Deterministic proof identifier</div>
                   </div>
                   <div>
                     <div className="output-key">Score</div>
-                    <div className="output-value">{result.score}</div>
-                  </div>
-                  <div>
-                    <div className="output-key">Tags</div>
-                    <div className="output-value">{result.tags.join(", ")}</div>
+                    <div className="output-value score-value">{result.score}</div>
                   </div>
                 </div>
-                <p className="subtle">Same input always produces the same proof.</p>
+                <p className="subtle result-ens-note">
+                  ENS is used for identity abstraction only. Proofs are generated solely from the
+                  resolved wallet address.
+                </p>
+                <div className="interpretation">
+                  <div className="interpretation-title">Eligibility Interpretation (Example)</div>
+                  <p className="interpretation-body">
+                    {result.score >= 20
+                      ? "Likely suitable for long-term incentive or loyalty-based programs."
+                      : "May be filtered for short-term or farming-related behavior."}
+                  </p>
+                  <p className="subtle interpretation-disclaimer">
+                    This interpretation is illustrative only and does not trigger any on-chain action.
+                  </p>
+                </div>
               </div>
             );
           })}
