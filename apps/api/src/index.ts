@@ -1,5 +1,6 @@
 import cors from "cors";
 import express from "express";
+import pLimit from "p-limit";
 import { ApiError } from "./errors";
 import { resolveEnsOrAddress } from "./ens";
 import { generateDeterministicProof } from "./proof";
@@ -95,32 +96,35 @@ app.post("/api/proof/batch", async (req, res, next) => {
     }
 
     const chainId = process.env.CHAIN_ID ?? "1";
+    const limit = pLimit(2);
     const results = await Promise.all(
-      inputs.map(async (input) => {
-        if (typeof input !== "string") {
-          return {
-            input: String(input),
-            error: {
-              code: "INVALID_INPUT",
-              message: "Input must be a string."
-            }
-          };
-        }
+      inputs.map((input) =>
+        limit(async () => {
+          if (typeof input !== "string") {
+            return {
+              input: String(input),
+              error: {
+                code: "INVALID_INPUT",
+                message: "Input must be a string."
+              }
+            };
+          }
 
-        try {
-          return await buildBatchProof(input, chainId);
-        } catch (error) {
-          const { code, message } = getErrorDetails(error);
-          const trimmedInput = input.trim();
-          return {
-            input: trimmedInput || input,
-            error: {
-              code,
-              message
-            }
-          };
-        }
-      })
+          try {
+            return await buildBatchProof(input, chainId);
+          } catch (error) {
+            const { code, message } = getErrorDetails(error);
+            const trimmedInput = input.trim();
+            return {
+              input: trimmedInput || input,
+              error: {
+                code,
+                message
+              }
+            };
+          }
+        })
+      )
     );
 
     const response: BatchProofResponse = {
