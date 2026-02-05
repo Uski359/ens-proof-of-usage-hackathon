@@ -32,6 +32,35 @@ const isBatchProofSuccess = (
   result: BatchProofSuccess | BatchProofError
 ): result is BatchProofSuccess => !("error" in result);
 
+const normalizeBatchError = (error: BatchProofError["error"]) => {
+  const code = error.code || "UNKNOWN_ERROR";
+  const message = error.message || "";
+  const isRateLimit = /too many requests|rate limit/i.test(message);
+
+  if (code === "ENS_RESOLVE_FAILED" || isRateLimit) {
+    return {
+      title: "ENS Resolution Unavailable",
+      message:
+        "This ENS name could not be resolved right now due to RPC rate limits. No proof was generated for this input.",
+      detailsCode: code
+    };
+  }
+
+  if (code === "ENS_NOT_FOUND") {
+    return {
+      title: "ENS Name Not Found",
+      message: "This ENS name could not be found. Check spelling and try again.",
+      detailsCode: code
+    };
+  }
+
+  return {
+    title: "Unable to Generate Proof",
+    message: "An unexpected error occurred while processing this input.",
+    detailsCode: code
+  };
+};
+
 const escapeCsvValue = (value: string | number) => {
   const stringValue = String(value);
   if (/[",\n]/.test(stringValue)) {
@@ -130,6 +159,8 @@ export default function ProofDemoPage() {
   const [verifyReferenceInput, setVerifyReferenceInput] = useState<string | null>(null);
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
   const successfulResults = data?.results.filter(isBatchProofSuccess) ?? [];
+  const errorCount = data?.results.filter((result) => "error" in result).length ?? 0;
+  const showPartialSummary = successfulResults.length > 0 && errorCount > 0;
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -433,6 +464,15 @@ export default function ProofDemoPage() {
 
       {data ? (
         <div className="section">
+          {showPartialSummary ? (
+            <div className="summary-bar">
+              <div className="summary-title">Partial results</div>
+              <p className="summary-body">
+                Some ENS names could not be resolved due to RPC rate limits. Successful proofs
+                remain deterministic and reproducible.
+              </p>
+            </div>
+          ) : null}
           <div className="card">
             <div className="card-title">
               <h2>Results</h2>
@@ -482,14 +522,21 @@ export default function ProofDemoPage() {
           </div>
           {data.results.map((result, index) => {
             if ("error" in result) {
+              const normalizedError = normalizeBatchError(result.error);
               return (
-                <div key={`${result.input}-${index}`} className="card">
+                <div key={`${result.input}-${index}`} className="card card-error">
                   <div className="card-title">
                     <h2>Input: {result.input || "Invalid input"}</h2>
+                    <span className="badge-inline badge-failed">Failed</span>
                   </div>
-                  <p className="error">
-                    {result.error.code}: {result.error.message}
-                  </p>
+                  <div className="error-content">
+                    <div className="error-title">{normalizedError.title}</div>
+                    <p className="error-message">{normalizedError.message}</p>
+                    <details className="error-details">
+                      <summary>Details</summary>
+                      <span className="error-code">Code: {normalizedError.detailsCode}</span>
+                    </details>
+                  </div>
                 </div>
               );
             }
