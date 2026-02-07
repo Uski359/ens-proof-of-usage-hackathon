@@ -97,6 +97,7 @@ Future policy upgrades will be versioned and communicated explicitly.
 ## Live Demo
 
 👉 **Demo:** [https://<your-vercel-url> ](https://ens-proof-of-usage-hackathon-web.vercel.app) 
+
 👉 **Repository:** [https://github.com/](https://github.com/Uski359/ens-proof-of-usage-hackathon)
 
 ---
