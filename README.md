@@ -1,148 +1,115 @@
-# ENS-aware Proof-of-Usage
-## Deterministic Eligibility for DeFi Incentives
+# ENS-aware Deterministic Proof-of-Usage
 
-Deterministic, reproducible on-chain usage verification using ENS identity for DeFi incentives, airdrops, and rewards.
+Deterministic, reproducible proof-of-usage generation for DeFi incentives and airdrops,  
+using ENS strictly as a human-readable identity abstraction layer.
 
-## 🚨 The Problem
+---
 
-Today, DeFi incentives and airdrops are:
+## Overview
 
-- Ad-hoc and non-reproducible
-- Difficult to verify transparently
-- Vulnerable to Sybil and farming attacks
-- Inconsistent across time and evaluators
+In DeFi, incentive eligibility and airdrop rules are often ad-hoc, opaque, and hard to reproduce.
 
-The same wallet can receive different eligibility results depending on who evaluates it and when.
+This project demonstrates a **deterministic proof-of-usage system** where the **same input always produces the same output** under the same policy — making eligibility decisions transparent, auditable, and reproducible.
 
-This breaks trust.
+ENS is intentionally used **only for UX and identity abstraction**.  
+All proofs are generated **solely from the resolved wallet address**, not from the ENS name itself.
 
-## 💡 The Idea
+---
 
-This project introduces ENS-aware deterministic proof-of-usage.
+## How It Works
 
-Instead of distributing rewards, it generates verifiable eligibility proofs.
+1. User inputs an **ENS name or wallet address**
+2. If ENS is provided, it is resolved **server-side** for identity readability
+3. The resolved **wallet address** is used as the **only proof input**
+4. A deterministic proof is generated using a fixed policy
+5. The system outputs:
+   - Proof hash
+   - Score
+   - Explainable policy tags
 
-Flow:
+**Same input + same policy = same proof. Always.**
 
-ENS name / Wallet  
-↓  
-Deterministic evaluation  
-↓  
-Proof hash + score + risk tags
+---
 
-Key principles:
+## ENS Usage (Intentional & Minimal)
 
-- ENS → human-readable identity layer
-- Proof → fully deterministic and reproducible
-- AI → interpretation only (never part of the proof)
+ENS is treated as an **identity abstraction layer**, not a trust assumption.
 
-If AI is removed, the proof still verifies.
+- ENS improves human readability and UX
+- Proof inputs remain strictly address-based
+- No ENS records are written or modified
+- No data is stored inside ENS
 
-## 🔑 Why ENS?
+This design aligns with ENS best practices for **wallet-centric applications**.
 
-ENS is not used as a cosmetic feature.
+---
 
-It provides:
+## Key Features
 
-- Human-readable input (UX)
-- Identity abstraction over raw addresses
-- Identity continuity across evaluations
+- **Deterministic proof generation**
+- **ENS-aware UX (read-only, backend-resolved)**
+- **Batch processing** (multiple ENS names / addresses)
+- **Explainable policy tags**
+- **CSV & JSON export** for off-chain pipelines
+- **Graceful RPC error handling** (per-item, non-blocking)
+- **Public proof verification UX**
 
-Important detail:
+---
 
-ENS is resolved first.  
-Only the wallet address enters the proof.  
-ENS itself never alters proof determinism.
+## Proof Verification
 
-This design is intentionally aligned with the
-“Most Creative Use of ENS” sponsor track.
+Anyone can verify a proof by recomputing it using the same deterministic policy.
 
-## 🧪 What This Hackathon Demo Includes
+- No state is stored
+- No signatures or trust assumptions are introduced
+- Verification simply recomputes and compares outputs
 
-Included:
+This reinforces transparency and reproducibility.
 
-- ENS / wallet input
-- ENS to address resolution
-- Deterministic usage evaluation
-- Proof hash generation
-- Score, farming risk, and tags
-- Demo UI at /demo/proof
-- API endpoint at /api/proof
-
-Explicitly not included (by design):
-
-- Production infrastructure
-- Full indexing engine
-- Real airdrop execution
-- Existing IndexFlow codebase
-
-The scope is deliberately limited to ensure hackathon integrity.
-
-## 🖥️ Demo
-
-Live Demo:  
-https://<hackathon-demo-link>
-
-Demo Route:  
-/demo/proof
-
-Suggested demo flow:
-
-1. Enter an ENS name or address
-2. Resolve to wallet address
-3. Generate deterministic proof
-4. Observe fixed hash, score, and tags
-5. Re-run to confirm deterministic output
-
-## 🏗️ Tech Stack
-
-- Express + TypeScript - API
-- Ethers - ENS resolution
-- Next.js (App Router) - demo interface
-- TypeScript
-
-AI tools were used only for UI scaffolding and non-critical helper logic.
-
-Full disclosure is available in AI_ATTRIBUTION.md.
-
-## 📁 Repository Structure
-
-apps/api -> Express API for ENS resolution + deterministic proof  
-apps/web -> Next.js demo UI  
-DEPLOYMENT.md -> Render/Vercel setup  
-HACKATHON.md -> Hackathon compliance
-
-
-## 🏁 Hackathon Compliance
-
-- Repository created during the hackathon
-- All code written from scratch
-- No previous repositories, deploys, or demos reused
-
-Full details are documented in HACKATHON.md.
-
-## 🏆 Sponsor Alignment
-
-- ENS → identity-aware deterministic proofs
-- DeFi protocols → reproducible eligibility for incentives and airdrops
-
-This project focuses on eligibility proofs, not reward distribution.
-
-## 📜 License
-
-MIT
-
-## 🧠 One-liner for Demo and Judging
-
-We don’t create rewards.  
-We create deterministic eligibility.
+---
 
 ## Determinism Contract
 
-- Inputs that matter: resolved wallet address + policy version.
-- What never changes: no randomness, no timestamps, no external state.
-- Future policy versions will be communicated in the README and UI.
+This project guarantees:
 
-## Changelog
+- No randomness
+- No timestamps
+- No AI-based decision logic
+- Proof output depends **only** on:
+  - Resolved wallet address
+  - Policy version
 
-- v1 � Initial deterministic policy
+### Policy Versions
+- **v1** — Initial deterministic policy
+
+Future policy upgrades will be versioned and communicated explicitly.
+
+---
+
+## Demo Notes
+
+- Batch size is intentionally limited for demo stability
+- ENS resolution errors do **not** affect other inputs in the same batch
+- Successful proofs remain fully deterministic and reproducible
+
+---
+
+## Live Demo
+
+👉 **Demo:** [https://<your-vercel-url> ](https://ens-proof-of-usage-hackathon-web.vercel.app) 
+👉 **Repository:** [https://github.com/](https://github.com/Uski359/ens-proof-of-usage-hackathon)
+
+---
+
+## Use Cases
+
+- DeFi incentive eligibility
+- Airdrop filtering
+- Loyalty and long-term usage programs
+- Off-chain eligibility pipelines with on-chain verifiability
+
+---
+
+## License
+
+MIT
